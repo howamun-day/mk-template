@@ -1,0 +1,63 @@
+services:
+  misskey:
+    restart: always
+    image: misskey/misskey:2024.3.1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/misskey:/misskey/files
+      - ./config/default.yml:/misskey/.config/default.yml:ro
+    networks:
+      - internal_network
+      - external_network
+  redis:
+    restart: always
+    image: redis:7-alpine
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: "redis-cli ping"
+      interval: 5s
+      retries: 20
+    networks:
+      - internal_network
+  db:
+    restart: always
+    image: postgres:15-alpine
+    env_file:
+      - ./config/docker.env
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+      interval: 5s
+      retries: 20
+    networks:
+      - internal_network
+  meilisearch:
+    restart: always
+    image: getmeili/meilisearch:prototype-japanese-10
+    env_file:
+      - ./config/meilisearch.env
+    volumes:
+      - ./data/meili:/meili_data
+    networks:
+      - internal_network
+  # tunnel:
+  #   restart: always
+  #   image: cloudflare/cloudflared:2024.3.0
+  #   command: tunnel run
+  #   env_file:
+  #     - ./config/docker.env
+  #   networks:
+  #     - internal_network
+  #     - external_network
+networks:
+  internal_network:
+    internal: true
+  external_network:
